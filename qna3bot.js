@@ -127,8 +127,8 @@ const queryStatus= async ()=>{
   const userid=resp.data.user.id;
   console.log("accessToken:",authorization);
   console.log("x-id:",userid);
-  params['headersMapping']['x-id']=userid;
-  params['headersMapping']['Authorization']='Bearer '+authorization;
+  params['variables']['headersMapping']['x-id']=userid;
+  params['variables']['headersMapping']['Authorization']='Bearer '+authorization;
  
   const result=await qna3OpbnbBot.loadUserDetial(params,authorization,userid);
   console.log("userData:",result);
