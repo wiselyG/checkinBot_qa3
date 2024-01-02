@@ -25,7 +25,19 @@ class OpbnbUtil{
     })
   }
 
-  checkin(gasLimit,gasPrice){
+  getNonce(){
+    return new Promise((resolve,reject)=>{
+      this.wallet.getTransactionCount('pending')
+      .then(nonce=>{
+        resolve(nonce);
+      })
+      .catch(err=>{
+        reject(err);
+      })
+    });
+  }
+
+  checkin(gasLimit,gasPrice,nonce){
     return new Promise((resolve,reject)=>{
       const limit=ethers.BigNumber.from(gasLimit).add(100);
       const transaction={
@@ -33,6 +45,7 @@ class OpbnbUtil{
         value: ethers.utils.parseEther('0'),
         gasLimit: limit,
         gasPrice: gasPrice,
+        nonce: nonce,
         data: inputData
       }
       this.wallet.signTransaction(transaction)

@@ -3,6 +3,7 @@ const fetch =require("node-fetch");
 
 const BNB_URL=process.env.BSC_URL;
 const OPBNB_URL=process.env.OPBNB_URL;
+const userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 class Qna3Util {
   constructor(pKey){
@@ -30,6 +31,18 @@ class Qna3Util {
     })
   }
 
+  getNonce(){
+    return new Promise((resolve,reject)=>{
+      this.wallet.getTransactionCount('pending')
+      .then(nonce=>{
+        resolve(nonce);
+      })
+      .catch(err=>{
+        reject(err);
+      })
+    });
+  }
+
   signervalue(types,values){
     return ethers.utils.solidityKeccak256(types,values);
   }
@@ -46,8 +59,6 @@ class Qna3Util {
   login(data){
     return new Promise((resolve,reject)=>{
       const login_url="https://api.qna3.ai/api/v2/auth/login?via=wallet";
-      const userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-      console.log("post-data:",JSON.stringify(data));
       fetch(login_url,{
         method:'POST',
         headers:{
@@ -59,7 +70,6 @@ class Qna3Util {
           'Sec-Fetch-Mode':'cors',
           'Sec-Fetch-Site':'same-site',
           'TE':'trailers',
-          'x-id':'8d2f6103-9c6e-463c-94b9-e72f29b841bb',
           'x-lang':'english'
         },
         body:JSON.stringify(data)
