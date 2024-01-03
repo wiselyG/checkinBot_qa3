@@ -46,6 +46,15 @@ class Qna3Util {
     });
   }
 
+  getGasPrice(){
+    return new Promise(resolve=>{
+      this.provider.getGasPrice()
+      .then(price=>{
+        resolve(price);
+      })
+    });
+  }
+
   signervalue(types,values){
     return ethers.utils.solidityKeccak256(types,values);
   }
@@ -90,24 +99,23 @@ class Qna3Util {
     });
   }
 
-  claimArgments(xid,authorization){
+  claimArgments(authorization){
     return new Promise((resolve,reject)=>{
       const claimall="https://api.qna3.ai/api/v2/my/claim-all";
       fetch(claimall,{
         method:'POST',
         headers:{
-          'Content-Type': 'application/json',
+          'Accept':'application/json, text/plain, */*',
+          'Content-Length': 0,
           'User-Agent': userAgent,
           'Origin':'https://qna3.ai',
-          'Host':'api.qna3.ai',
           'Sec-Fetch-Dest':'empty',
           'Sec-Fetch-Mode':'cors',
           'Sec-Fetch-Site':'same-site',
-          'TE':'trailers',
           'X-Lang':'english',
-          'Authorization':'Bearer '+authorization,
-          'X-Id':xid
-        }
+          'Authorization':'Bearer '+authorization
+        },
+        body: null
       })
       .then(response=>{
         if(response.ok){
@@ -123,13 +131,25 @@ class Qna3Util {
     });
   }
 
-  claimOnchain(amount,nonce,signature){
+  claimOnchain(amount,nonce,signature,chain_ne,gasPrice){
     return new Promise((resolve,reject)=>{
-      this.contract.claimCredit(amount,nonce,signature)
-      .then(result=>{
-        resolve(result);
-      })
-      .catch(err=>reject(err));
+      // const limit=ethers.BigNumber.from(gasLimit).add(100);
+      const params={
+        value: ethers.utils.parseEther('0'),
+        gasLimit: 21000,
+        gasPrice: gasPrice,
+        nonce: chain_ne
+      }
+      this.contract.estimateGas.claimCredit(amount,nonce,signature)
+      .then(limit=>{
+        console.log("gasLimit:",limit.toNumber());
+        params['gasLimit']=limit.toNumber();
+        this.contract.claimCredit(amount,nonce,signature,params)
+        .then(result=>{
+          resolve(result);
+        })
+        .catch(err=>reject(err));
+      });
     });
   }
 

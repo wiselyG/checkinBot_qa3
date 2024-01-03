@@ -86,31 +86,36 @@ const claimAll= async ()=>{
   if(!qna3params){
     await initQna3params();
   }
-  const result = await qna3Bot.claimArguments(qna3params.xid,qna3params.Authorization);
-  const amount=result.data.amount;
-  const nonce=result.data.signature.nonce;
-  const signature=result.data.signature.signature;
-  const urlId=result.data.history_id;
+  const result = await qna3Bot.claimArgments(qna3params.Authorization);
   const sc=result.statusCode;
-  console.log("claim amount:",amount," urlId:",urlId);
   try {
     if(sc == 200){
+      const amount=result.data.amount;
+      const nonce=result.data.signature.nonce;
+      const signature=result.data.signature.signature;
+      const urlId=result.data.history_id;
+      console.log("claim amount:",amount," urlId:",urlId);
+
       console.log("get argument success.");
-      const tx=await qna3Bot.claimOnChain(amount,nonce,signature);
+      const chain_ne=await qna3Bot.getNonce();
+      const gasPrice= await qna3Bot.getGasPrice();
+      const tx=await qna3Bot.claimOnchain(amount,nonce,signature,chain_ne,gasPrice);
       const receipt =await tx.wait();
       console.log(receipt.status == 1?"success":"failed"," claim,Tx:",tx.hash);
       if(receipt.status == 1){
         let status=0;
         do {
-          const claimTask= new Promise((resolve,reject)=>{
-            setTimeout(()=>{
-              qna3Bot.claimOnsite(urlId,tx.hash,qna3params.Authorization,qna3params.xid)
-              .then(result=>{
-                resolve(result);
-              })
-              .catch(err=>reject(err));
-            },1900);
-          });
+          const claimTask= ()=>{
+            return new Promise((resolve,reject)=>{
+              setTimeout(()=>{
+                qna3Bot.claimOnsite(urlId,tx.hash,qna3params.Authorization,qna3params.xid)
+                .then(result=>{
+                  resolve(result);
+                })
+                .catch(err=>reject(err));
+              },1900);
+            });
+          }
           try {
             const ru=await claimTask();
             console.log(ru.statusCode==200?"success":"failed"," claimed,urlId:",urlId);
@@ -121,7 +126,7 @@ const claimAll= async ()=>{
         } while (status == 0);
       }
     }else{
-      console.log("get argument failed. code:",sc)
+      console.log("get argument failed. result:",result);
     }
   } catch (error) {
     console.error("*Claim points Error:",error.message);
@@ -148,6 +153,9 @@ const runTask = async ()=>{
       await checkIn();
       const [result,,]= await queryStatus();
       console.log(result == 1?"success":"failed");
+      if(checkInDays%7==0){
+        claimAll();
+      }
     }
   } catch (error) {
     console.error("#Error:",error.message);
@@ -211,8 +219,9 @@ const queryStatus= async ()=>{
   const result=await qna3OpbnbBot.loadUserDetial(params,qna3params.Authorization,qna3params.xid);
   const checkInDays=result.data.userDetail.checkInStatus.checkInDays;
   const today=result.data.userDetail.checkInStatus.todayCount;
-  const score=result.data.userDetail.creditHistories.items[0].score;
-  console.log("checkInDays:",checkInDays,"today:",today,"score:",score);
+  const items=result.data.userDetail.creditHistories.items;
+  const score=items[0].score;
+  console.log("checkInDays:",checkInDays,"today:",today,"today score:",score,"items:",items.length);
   return [today,checkInDays,score];
 }
 
