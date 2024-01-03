@@ -59,7 +59,7 @@ class OpbnbUtil{
     });
   }
 
-  checkInsite(authorization,txHash,via){
+  checkInsite(authorization,txHash,via,xid){
     return new Promise((resolve,reject)=>{
       fetch(checkInsiteUrl,{
         method:'POST',
@@ -69,6 +69,8 @@ class OpbnbUtil{
           'Origin':'https://qna3.ai',
           'Host':'api.qna3.ai',
           'Authorization':'Bearer '+authorization,
+          'X-Id':xid,
+          'X-Lang':'english'
         },
         body:JSON.stringify({"hash":txHash,"via":via})
       })
@@ -96,6 +98,7 @@ class OpbnbUtil{
           'Origin':'https://qna3.ai',
           'Host':'api.qna3.ai',
           'Authorization':'Bearer '+authorization,
+          'X-Lang':'english',
           'X-Id':xid
         },
         body:JSON.stringify(data)

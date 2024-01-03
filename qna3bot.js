@@ -62,6 +62,73 @@ program
   let valid = cron.validate('15 11,22 */1 * *');
   console.log("valid:",valid);
 })
+
+program
+.command("claim")
+.argument("<number>", "which wallet address you whant")
+.action(index=>{
+  console.log("wallet-",index);
+  if(index == 1){
+    qna3Bot=new Qna3Util(wKey1);
+    qna3OpbnbBot=new OpbnbUtil(wKey1);
+  }else if(index == 2){
+    qna3Bot=new Qna3Util(wKey2);
+    qna3OpbnbBot=new OpbnbUtil(wKey2);
+  }else{
+    qna3Bot=new Qna3Util(wKey3);
+    qna3OpbnbBot=new OpbnbUtil(wKey3);
+  }
+  claimAll();
+  console.log("claimed");
+});
+
+const claimAll= async ()=>{
+  if(!qna3params){
+    await initQna3params();
+  }
+  const result = await qna3Bot.claimArguments(qna3params.xid,qna3params.Authorization);
+  const amount=result.data.amount;
+  const nonce=result.data.signature.nonce;
+  const signature=result.data.signature.signature;
+  const urlId=result.data.history_id;
+  const sc=result.statusCode;
+  console.log("claim amount:",amount," urlId:",urlId);
+  try {
+    if(sc == 200){
+      console.log("get argument success.");
+      const tx=await qna3Bot.claimOnChain(amount,nonce,signature);
+      const receipt =await tx.wait();
+      console.log(receipt.status == 1?"success":"failed"," claim,Tx:",tx.hash);
+      if(receipt.status == 1){
+        let status=0;
+        do {
+          const claimTask= new Promise((resolve,reject)=>{
+            setTimeout(()=>{
+              qna3Bot.claimOnsite(urlId,tx.hash,qna3params.Authorization,qna3params.xid)
+              .then(result=>{
+                resolve(result);
+              })
+              .catch(err=>reject(err));
+            },1900);
+          });
+          try {
+            const ru=await claimTask();
+            console.log(ru.statusCode==200?"success":"failed"," claimed,urlId:",urlId);
+            status=ru.statusCode;
+          } catch (error) {
+            console.error("claim on site Error:",error.message);
+          }
+        } while (status == 0);
+      }
+    }else{
+      console.log("get argument failed. code:",sc)
+    }
+  } catch (error) {
+    console.error("*Claim points Error:",error.message);
+    console.log(error.stack);
+  }
+}
+
 const scheduleTask = async ()=>{
   console.log("*start------",new Date().toLocaleString('zh-CN'));
   cron.schedule('15 11,22 */1 * *',()=>{
@@ -102,7 +169,7 @@ const checkIn = async ()=>{
   console.log(receipt.status === 1?"success":"failed"," Tx:",tx.hash);
   if(receipt.status==1){
     try {
-      const siteCheckin=await qna3OpbnbBot.checkInsite(qna3params.Authorization,tx.hash,"opbnb");
+      const siteCheckin=await qna3OpbnbBot.checkInsite(qna3params.Authorization,tx.hash,"opbnb",qna3params.xid);
       console.log(siteCheckin);
       return true;
     } catch (error) {
