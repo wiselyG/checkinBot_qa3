@@ -90,6 +90,7 @@ class Qna3Util {
         if(response.ok){
           return response.json();
         }else {
+          console.log("login failed",response.statusText);
           throw Error(`Request failed with status:${response.status}`);
         }
       }).then(result=>{

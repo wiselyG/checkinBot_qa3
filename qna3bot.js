@@ -55,10 +55,7 @@ program
   .then(address=>{
     console.log("wallet:",address);
   });
-  qna3OpbnbBot.getNonce()
-  .then(nonce=>{
-    console.log("opbnb nonce:",nonce);
-  });
+  queryStatus();
   let valid = cron.validate('15 11,22 */1 * *');
   console.log("valid:",valid);
 })
@@ -121,23 +118,25 @@ const claimAll= async ()=>{
             console.log(ru.statusCode==200?"success":"failed"," claimed,urlId:",urlId);
             status=ru.statusCode;
           } catch (error) {
-            console.error("claim on site Error:",error.message);
+            console.error(status,"- claim on site Error:",error.message);
+            status++;
           }
-        } while (status == 0);
+        } while (status < 5);
       }
     }else{
-      console.log("get argument failed. result:",result);
+      console.log("claim on chain failed,status:",receipt.status);
     }
   } catch (error) {
     console.error("*Claim points Error:",error.message);
     console.log(error.stack);
+    throw error;
   }
 }
 
 const scheduleTask = async ()=>{
-  console.log("*start------",new Date().toLocaleString('zh-CN'));
+  console.log("*start------",printLocalDatetime());
   cron.schedule('15 11,22 */1 * *',()=>{
-    console.log("-------------",new Date().toLocaleString('zh-CN'));
+    console.log("-------------",printLocalDatetime());
     runTask();
   },{
     scheduled: true,
@@ -145,17 +144,21 @@ const scheduleTask = async ()=>{
   });
 }
 
+const printLocalDatetime=()=>{
+  return new Date().toLocaleString('zh',{timeZone:'Asia/Shanghai'});
+}
+
 const runTask = async ()=>{
-  const [today,checkInDays,score] = await queryStatus();
-  console.log("score:",score,"today:",today);
   try {
+    const [today,checkInDays,score] = await queryStatus();
+    console.log("score:",score,"today:",today);
     if(today == 0){
       await checkIn();
       const [result,,]= await queryStatus();
       console.log(result == 1?"success":"failed");
-      if(checkInDays%7==0){
-        claimAll();
-      }
+    }
+    if(checkInDays%7==0 && today==0){
+      claimAll();
     }
   } catch (error) {
     console.error("#Error:",error.message);
@@ -216,7 +219,12 @@ const queryStatus= async ()=>{
   params['variables']['headersMapping']['x-id']=qna3params.xid;
   params['variables']['headersMapping']['Authorization']='Bearer '+qna3params.Authorization;
  
-  const result=await qna3OpbnbBot.loadUserDetial(params,qna3params.Authorization,qna3params.xid);
+  let result=await qna3OpbnbBot.loadUserDetial(params,qna3params.Authorization,qna3params.xid);
+  const flag=result.hasOwnProperty("data");
+  if(!flag){
+    console.log("Userdetail not found--",result);
+    qna3params=undefined;
+  }
   const checkInDays=result.data.userDetail.checkInStatus.checkInDays;
   const today=result.data.userDetail.checkInStatus.todayCount;
   const items=result.data.userDetail.creditHistories.items;
